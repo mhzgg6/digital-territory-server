@@ -67,6 +67,5 @@ const register = async (ctx) => {
 }
 
 module.exports = {
-  testApi,
   register
 }
