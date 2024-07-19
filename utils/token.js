@@ -3,7 +3,7 @@ const { TOKEN_ENCODE_STR, URL_YES_PASS } = require('../config/jwt')
 
 module.exports = {
   create_token (str) {
-    const token = sign({ str }, { expiresIn: '2h' }, TOKEN_ENCODE_STR)
+    const token = sign({ str }, TOKEN_ENCODE_STR, { expiresIn: '2h' } )
     return token
   },
   async check_token(ctx, next) {

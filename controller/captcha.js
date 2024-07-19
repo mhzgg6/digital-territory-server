@@ -5,6 +5,8 @@ const getCaptcha = async (ctx) => {
     size: 4
   })
   try {
+    // 存储验证码到 session
+    ctx.session.captcha = captchaData.text
     ctx.body = {
       code: 200,
       msg: '获取验证码成功',

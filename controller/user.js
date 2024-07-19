@@ -1,20 +1,11 @@
 const User = require('../db/user')
+const { create_token } = require('../utils/token')
 
 const findUser = (username) => {
-  const result = {}
   return new Promise((resolve, reject) => {
-    User.find({ username })
+    User.findOne({ username })
       .then(res => {
-        console.log(res, 'findUser')
-        if (res.length > 0) {
-          result.isExist = true
-          result.message = '用户已存在'
-          resolve(result)
-        } else {
-          result.isExist = false
-          result.message = '用户不存在'
-          resolve(result)
-        }
+        resolve(res)
       })
       .catch(err => {
         reject(err)
@@ -22,41 +13,107 @@ const findUser = (username) => {
   })
 }
 
-// 用户注册
-const register = async (ctx) => {
-  console.log('注册：：：，', ctx.request.body);
-  let { username, password } = ctx.request.body
-  username = '1111'
-  const msg = {}
-  try {
-    const { isExist, message } = await findUser(username)
-    if (isExist) {
-      // 登录
-      msg.code = 200
-      msg.msg = message
-      msg.success = false
-      msg.data = {}
-      console.log('1111',msg)
-    } else {
-      // 注册
-      const _user = new User({ 
-        username, 
-        password 
+const saveUser = (userInfo) => {
+  const _user = new User(userInfo)
+  return new Promise((resolve, reject) => {
+    _user.save()
+      .then(res => {
+        resolve(true)
       })
-      const res = await _user.save()
-      console.log(res, 'res')
+      .catch(err => {
+        reject(false)
+      })
+  })
+}
+
+const register = async (ctx) => {
+  let { username, password } = ctx.request.body
+
+  try {
+    const findResult = await findUser(username)
+    console.log(findResult, 'register')
+    if (!findResult) {
+      const status = await saveUser({
+        username,
+        password
+      })
+      if (status) {
+        ctx.body = {
+          code: 200,
+          msg: '注册成功',
+          success: true,
+          data: {}
+        }
+      } else {
+        ctx.body = {
+          code: 401,
+          msg: '注册失败',
+          success: false,
+          data: {}
+        }
+      }
+    } else {
+      ctx.body = {
+        code: 401,
+        msg: '用户名已存在',
+        success: false,
+        data: {}
+      }
     }
-    // ctx.body = {
-    //   code: 200,
-    //   msg: '注册成功',
-    //   success: true,
-    //   data: {
-    //     name: 'register'
-    //   }
-    // }
-    ctx.body = msg
   } catch (error) {
-    console.log(error, 'error')  
+    ctx.body = {
+      state: 500,
+      msg: '服务器异常',
+      success: false,
+      data: {}
+    } 
+  }
+}
+
+// 用户登录
+const login = async (ctx) => {
+  let { username, password, code } = ctx.request.body
+  code = 'Sp5R'
+  try {
+    console.log(ctx.session)
+    // 处理验证码
+    const { captcha } = ctx.session
+    if (code && code.toLowerCase() === captcha.toLowerCase()) {
+      const findResult = await findUser(username)
+      console.log(findResult)
+      if (findResult) {
+        if (findResult.password === password) {
+          const token = create_token(username)
+          // 清除验证码
+          delete ctx.session
+          ctx.body = {
+            code: 200,
+            msg: '登录成功',
+            success: true,
+            data: {
+              token,
+              userId: findResult._id,
+              userName: findResult.username
+            }
+          }
+        }
+      } else {
+        ctx.body = {
+          state: 401,
+          msg: '用户名或密码错误',
+          success: false,
+          data: {}
+        } 
+      }
+    } else {
+      ctx.body = {
+        code: 401,
+        msg: '验证码错误',
+        success: false,
+        data: {}
+      }
+    }
+  } catch (error) {
     ctx.body = {
       state: 500,
       msg: '服务器异常',
@@ -67,5 +124,6 @@ const register = async (ctx) => {
 }
 
 module.exports = {
+  login,
   register
 }

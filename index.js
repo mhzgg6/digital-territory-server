@@ -6,9 +6,12 @@ const onerror = require('koa-onerror')
 const staticServer = require('koa-static')
 
 const { check_token } = require('./utils/token')
+const { create_session } = require('./utils/session')
 const routes = require('./routes/index')
 
 const app = new Koa()
+
+create_session(app)
 
 // 错误和异常处理
 onerror(app)

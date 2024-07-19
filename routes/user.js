@@ -5,6 +5,7 @@ const captchaController = require('../controller/captcha')
 // userRouter.get('/api/test', userController.testApi)
 
 userRouter.get('/api/user/captcha', captchaController.getCaptcha)
+userRouter.post('/api/user/login', userController.login)
 userRouter.post('/api/user/register', userController.register)
 
 module.exports = userRouter
