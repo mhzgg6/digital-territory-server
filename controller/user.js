@@ -26,6 +26,34 @@ const saveUser = (userInfo) => {
   })
 }
 
+// 验证码判断
+const verifyCaptcha = (sessionCode, reqCode) => {
+  return new Promise((resolve) => {
+    if (!sessionCode) {
+      resolve({
+        code: 401,
+        msg: '验证码过期',
+        success: false,
+        data: {}
+      })
+    } else if (sessionCode && sessionCode.toLowerCase() !== reqCode.toLowerCase()) {
+      resolve({
+        code: 401,
+        msg: '验证码错误',
+        success: false,
+        data: {}
+      })
+    } else {
+      resolve({
+        code: 200,
+        msg: '验证成功',
+        success: true,
+        data: {}
+      })
+    }
+  })
+}
+
 const register = async (ctx) => {
   let { username, password } = ctx.request.body
 
@@ -73,12 +101,16 @@ const register = async (ctx) => {
 // 用户登录
 const login = async (ctx) => {
   let { username, password, code } = ctx.request.body
-  code = 'Sp5R'
+
   try {
-    console.log(ctx.session)
+    console.log(ctx.session, '登录获取验证码')
     // 处理验证码
     const { captcha } = ctx.session
-    if (code && code.toLowerCase() === captcha.toLowerCase()) {
+    const result = await verifyCaptcha(captcha, code)
+    console.log(result, 'result')
+    if (!result.success) {
+      ctx.body = result
+    } else {
       const findResult = await findUser(username)
       console.log(findResult)
       if (findResult) {
@@ -96,21 +128,21 @@ const login = async (ctx) => {
               userName: findResult.username
             }
           }
+        } else {
+          ctx.body = {
+            state: 401,
+            msg: '密码错误',
+            success: false,
+            data: {}
+          }
         }
       } else {
         ctx.body = {
           state: 401,
-          msg: '用户名或密码错误',
+          msg: '未找到用户',
           success: false,
           data: {}
         } 
-      }
-    } else {
-      ctx.body = {
-        code: 401,
-        msg: '验证码错误',
-        success: false,
-        data: {}
       }
     }
   } catch (error) {
