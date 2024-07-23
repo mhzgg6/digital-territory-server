@@ -1,5 +1,6 @@
 const User = require('../db/user')
 const { create_token } = require('../utils/token')
+const { create_bcrypt, check_bcrypt } = require('../utils/bcrypt')
 
 const findUser = (username) => {
   return new Promise((resolve, reject) => {
@@ -55,37 +56,48 @@ const verifyCaptcha = (sessionCode, reqCode) => {
 }
 
 const register = async (ctx) => {
-  let { username, password } = ctx.request.body
+  let { username, password, code } = ctx.request.body
 
   try {
-    const findResult = await findUser(username)
-    console.log(findResult, 'register')
-    if (!findResult) {
-      const status = await saveUser({
-        username,
-        password
-      })
-      if (status) {
-        ctx.body = {
-          code: 200,
-          msg: '注册成功',
-          success: true,
-          data: {}
+    console.log(ctx.session, '注册获取验证码')
+    // 处理验证码
+    const { captcha } = ctx.session
+    const result = await verifyCaptcha(captcha, code)
+    console.log(result, 'result');
+    if (!result.success) {
+      ctx.body = result
+    }  else {
+      const findResult = await findUser(username)
+      console.log(findResult, 'register')
+      if (!findResult) {
+        const hashedPassword = await create_bcrypt(password)
+        console.log(hashedPassword, 'hashedPassword')
+        const status = await saveUser({
+          username,
+          password: hashedPassword
+        })
+        if (status) {
+          ctx.body = {
+            code: 200,
+            msg: '注册成功',
+            success: true,
+            data: {}
+          }
+        } else {
+          ctx.body = {
+            code: 401,
+            msg: '注册失败',
+            success: false,
+            data: {}
+          }
         }
       } else {
         ctx.body = {
           code: 401,
-          msg: '注册失败',
+          msg: '用户名已存在',
           success: false,
           data: {}
         }
-      }
-    } else {
-      ctx.body = {
-        code: 401,
-        msg: '用户名已存在',
-        success: false,
-        data: {}
       }
     }
   } catch (error) {
@@ -114,7 +126,10 @@ const login = async (ctx) => {
       const findResult = await findUser(username)
       console.log(findResult)
       if (findResult) {
-        if (findResult.password === password) {
+        // 验证密码
+        const isValid = await check_bcrypt(password, findResult.password)
+        console.log(isValid, 'isValid');
+        if (isValid) {
           const token = create_token(username)
           // 清除验证码
           delete ctx.session
